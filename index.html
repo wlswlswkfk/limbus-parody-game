@@ -39,10 +39,7 @@
       <button class="btn-small btn-back" id="btn-party-back">← 돌아가기</button>
     </div>
     <div class="party-content">
-      <!-- Sinner list populated by party.js -->
       <div id="sinner-list" class="sinner-list"></div>
-
-      <!-- Right panel: party slots + confirm -->
       <div class="party-panel">
         <h3>파티 슬롯 (최대 3명)</h3>
         <div id="party-slots" class="party-slots"></div>
@@ -62,7 +59,6 @@
     <div class="dungeon-content">
       <canvas id="dungeon-canvas" width="800" height="620"></canvas>
 
-      <!-- Event modal -->
       <div id="dungeon-event-modal" class="dungeon-modal hidden">
         <div class="modal-content">
           <h3 id="event-title">이벤트</h3>
@@ -71,7 +67,6 @@
         </div>
       </div>
 
-      <!-- Reward modal -->
       <div id="dungeon-reward-modal" class="dungeon-modal hidden">
         <div class="modal-content">
           <h3>보상 획득!</h3>
@@ -89,20 +84,23 @@
       <div id="battle-turn-indicator" class="turn-indicator">스킬 선택</div>
     </div>
 
+    <!-- Canvas battle arena -->
     <div class="battle-arena">
-      <!-- Party side (left) -->
-      <div class="battle-side party-side" id="battle-party"></div>
+      <canvas id="battle-canvas" class="battle-canvas"></canvas>
 
-      <!-- Center: coins + log -->
-      <div class="battle-center">
+      <!-- Coin flip overlay (shown/hidden during coin phase) -->
+      <div id="battle-coins-overlay" class="battle-coins-overlay hidden">
         <div id="coin-display" class="coin-display">
           <div class="coin-display-label">코인 플립 영역</div>
         </div>
-        <div id="battle-log" class="battle-log"></div>
       </div>
 
-      <!-- Enemy side (right) -->
-      <div class="battle-side enemy-side" id="battle-enemies"></div>
+      <!-- Battle log (compact, shown as semi-transparent overlay) -->
+      <div id="battle-log" class="battle-log-overlay"></div>
+
+      <!-- Hidden HTML character containers (legacy fallback only) -->
+      <div id="battle-party"   style="display:none"></div>
+      <div id="battle-enemies" style="display:none"></div>
     </div>
 
     <div class="battle-controls">
@@ -138,6 +136,7 @@
         <button class="tab-btn active" data-tab="characters">캐릭터</button>
         <button class="tab-btn"        data-tab="dungeon">던전</button>
         <button class="tab-btn"        data-tab="settings">설정</button>
+        <button class="tab-btn"        data-tab="assets">에셋 관리</button>
       </div>
 
       <!-- Characters Tab -->
@@ -177,16 +176,26 @@
           <button class="btn-primary" id="btn-save-settings" style="max-width:200px">설정 저장</button>
         </div>
       </div>
+
+      <!-- Asset Management Tab -->
+      <div id="editor-tab-assets" class="tab-content">
+        <div id="asset-manager-content" class="asset-manager-content">
+          <p style="color:var(--text-secondary);font-size:0.85rem">에셋 관리 탭을 클릭하면 로드됩니다.</p>
+        </div>
+      </div>
     </div>
   </div>
 
   <!-- ═══════════════════════════════════════════════════════════ NOTIFICATIONS -->
   <div id="notification-container"></div>
 
-  <!-- Scripts (order matters) -->
+  <!-- Scripts (order matters: data → ui → audio → systems → main) -->
   <script src="js/data.js"></script>
   <script src="js/ui.js"></script>
+  <script src="js/asset-manager.js"></script>
   <script src="js/audio.js"></script>
+  <script src="js/sprite.js"></script>
+  <script src="js/battle-renderer.js"></script>
   <script src="js/battle.js"></script>
   <script src="js/party.js"></script>
   <script src="js/dungeon.js"></script>

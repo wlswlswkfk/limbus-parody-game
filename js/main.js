@@ -14,6 +14,14 @@ let _battleContext = null;
 // ─── Initialization ─────────────────────────────────────────────────────────
 
 async function initApp() {
+  // Initialize IndexedDB asset storage first
+  try {
+    await AssetManager.init();
+    await AudioManager.loadCustomAssets();
+  } catch (e) {
+    console.warn('Asset/audio init warning:', e);
+  }
+
   try {
     await GameData.loadAllData();
   } catch (e) {
@@ -37,8 +45,8 @@ async function initApp() {
 
   UI.showScreen('screen-menu');
 
-  // Optionally start gentle BGM
-  try { AudioManager.playBGM(GameData.config?.game?.bgmUrl || ''); } catch {}
+  // Start BGM (custom menu BGM if uploaded, else URL or generated)
+  try { AudioManager.playBGM(GameData.config?.game?.bgmUrl || '', 'menu'); } catch {}
 }
 
 // ─── Menu Listeners ─────────────────────────────────────────────────────────

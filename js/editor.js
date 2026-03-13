@@ -1,6 +1,6 @@
 /**
  * editor.js — EditorSystem
- * In-game data editor with tabs for Characters, Dungeon, and Settings.
+ * In-game data editor with tabs for Characters, Dungeon, Settings, and Asset Management.
  */
 
 class EditorSystem {
@@ -13,6 +13,7 @@ class EditorSystem {
     this._renderCharacters();
     this._renderDungeon();
     this._renderSettings();
+    this._renderAssets();
     this._setupImportExport();
   }
 
@@ -34,6 +35,7 @@ class EditorSystem {
     document.querySelectorAll('.tab-content').forEach(c => {
       c.classList.toggle('active', c.id === `editor-tab-${tabName}`);
     });
+    if (tabName === 'assets') this._renderAssets();
   }
 
   // ─── Characters Tab ────────────────────────────────────────────────────────
@@ -48,7 +50,6 @@ class EditorSystem {
       list.appendChild(this._buildSinnerEditorCard(sinner));
     }
 
-    // Add sinner button
     const addBtn = document.getElementById('btn-add-sinner');
     if (addBtn) {
       addBtn.onclick = () => this._showAddSinnerForm(list);
@@ -60,7 +61,6 @@ class EditorSystem {
     card.className = 'editor-sinner-card';
     card.id        = `ed-sinner-${sinner.id}`;
 
-    // Header
     const header = document.createElement('div');
     header.className = 'editor-sinner-card-header';
     header.innerHTML = `
@@ -81,7 +81,6 @@ class EditorSystem {
     header.appendChild(delBtn);
     card.appendChild(header);
 
-    // Body — identities
     const body = document.createElement('div');
     body.className = 'editor-sinner-body';
 
@@ -97,7 +96,6 @@ class EditorSystem {
       `;
       iCard.appendChild(iHeader);
 
-      // Skills
       for (const sk of identity.skills || []) {
         const row = document.createElement('div');
         row.className = 'editor-skill-row';
@@ -120,7 +118,6 @@ class EditorSystem {
   }
 
   _showAddSinnerForm(list) {
-    // Remove existing form if any
     document.getElementById('add-sinner-form')?.remove();
 
     const form = document.createElement('div');
@@ -199,9 +196,9 @@ class EditorSystem {
 
       if (node.enemies?.length) {
         const eInfo = document.createElement('span');
-        eInfo.style.color     = 'var(--text-secondary)';
-        eInfo.style.fontSize  = '0.75rem';
-        eInfo.textContent     = `적: ${node.enemies.join(', ')}`;
+        eInfo.style.color    = 'var(--text-secondary)';
+        eInfo.style.fontSize = '0.75rem';
+        eInfo.textContent    = `적: ${node.enemies.join(', ')}`;
         info.appendChild(document.createTextNode(' '));
         info.appendChild(eInfo);
       }
@@ -298,6 +295,334 @@ class EditorSystem {
         AudioManager.playSFX('select');
       };
     }
+  }
+
+  // ─── Asset Management Tab ──────────────────────────────────────────────────
+
+  async _renderAssets() {
+    const container = document.getElementById('asset-manager-content');
+    if (!container) return;
+    container.innerHTML = '<p style="color:var(--text-secondary);font-size:0.85rem">에셋 불러오는 중...</p>';
+
+    // Make sure AssetManager is ready
+    if (typeof AssetManager === 'undefined') {
+      container.innerHTML = '<p style="color:var(--accent-red-light)">AssetManager를 불러올 수 없습니다.</p>';
+      return;
+    }
+
+    container.innerHTML = '';
+
+    // ── Character Sprites ──────────────────────────────────────────────────
+    container.appendChild(this._sectionHeader('캐릭터 스프라이트'));
+
+    const sinners = GameData.characters?.sinners || [];
+    for (const sinner of sinners) {
+      container.appendChild(await this._buildSpriteRow(
+        `sprite_${sinner.id}`,
+        sinner.name,
+        'image',
+        true // has config
+      ));
+    }
+
+    if (!sinners.length) {
+      const p = document.createElement('p');
+      p.style.cssText = 'color:var(--text-secondary);font-size:0.8rem;padding:4px 0';
+      p.textContent = '캐릭터가 없습니다.';
+      container.appendChild(p);
+    }
+
+    // ── Enemy Sprites ──────────────────────────────────────────────────────
+    container.appendChild(this._sectionHeader('적 스프라이트'));
+
+    const enemies = GameData.enemies?.enemies || [];
+    for (const enemy of enemies) {
+      container.appendChild(await this._buildSpriteRow(
+        `enemy_sprite_${enemy.id}`,
+        enemy.name,
+        'image',
+        true
+      ));
+    }
+
+    // ── Battle Background ──────────────────────────────────────────────────
+    container.appendChild(this._sectionHeader('배경 이미지'));
+    container.appendChild(await this._buildSpriteRow('battle_background', '전투 배경', 'image', false));
+
+    // ── BGM ────────────────────────────────────────────────────────────────
+    container.appendChild(this._sectionHeader('음악 (BGM)'));
+    for (const [key, label] of [['bgm_menu','메뉴 BGM'],['bgm_battle','전투 BGM'],['bgm_dungeon','던전 BGM']]) {
+      container.appendChild(await this._buildAudioRow(key, label));
+    }
+
+    // ── SFX ────────────────────────────────────────────────────────────────
+    container.appendChild(this._sectionHeader('효과음 (SFX)'));
+    const sfxList = [
+      ['sfx_hit',       '공격/피격 SFX'],
+      ['sfx_coin',      '코인 SFX'],
+      ['sfx_coin_heads','코인 앞면 SFX'],
+      ['sfx_coin_tails','코인 뒷면 SFX'],
+      ['sfx_victory',   '승리 SFX'],
+      ['sfx_defeat',    '패배 SFX'],
+      ['sfx_heal',      '회복 SFX'],
+      ['sfx_navigate',  '이동 SFX'],
+      ['sfx_select',    '선택 SFX'],
+      ['sfx_boss',      '보스 SFX'],
+    ];
+    for (const [key, label] of sfxList) {
+      container.appendChild(await this._buildAudioRow(key, label));
+    }
+  }
+
+  _sectionHeader(text) {
+    const h = document.createElement('h4');
+    h.className = 'asset-section-header';
+    h.textContent = `── ${text} ──`;
+    return h;
+  }
+
+  /** Build a sprite/image asset row with upload/preview/delete buttons */
+  async _buildSpriteRow(key, label, _type, hasConfig) {
+    const row = document.createElement('div');
+    row.className = 'asset-row';
+    row.id = `asset-row-${key}`;
+
+    const nameEl = document.createElement('span');
+    nameEl.className = 'asset-label';
+    nameEl.textContent = label;
+    row.appendChild(nameEl);
+
+    // Preview thumbnail
+    const thumb = document.createElement('div');
+    thumb.className = 'asset-thumb';
+
+    const existingUrl = await AssetManager.load(key);
+    if (existingUrl) {
+      const img = document.createElement('img');
+      img.src = existingUrl;
+      img.className = 'asset-thumb-img';
+      thumb.appendChild(img);
+    } else {
+      thumb.textContent = '없음';
+    }
+    row.appendChild(thumb);
+
+    // Upload button
+    const uploadBtn = document.createElement('button');
+    uploadBtn.className = 'btn-small btn-primary';
+    uploadBtn.textContent = '업로드';
+    uploadBtn.onclick = () => this._uploadImage(key, thumb, row, hasConfig);
+    row.appendChild(uploadBtn);
+
+    // Delete button
+    const delBtn = document.createElement('button');
+    delBtn.className = 'btn-small btn-danger';
+    delBtn.textContent = '삭제';
+    delBtn.onclick = async () => {
+      await AssetManager.delete(key);
+      if (hasConfig) await AssetManager.delete(key + '_config');
+      thumb.innerHTML = '없음';
+      UI.showNotification(`${label} 삭제됨`);
+      await AudioManager.reloadCustomAsset(key);
+    };
+    row.appendChild(delBtn);
+
+    return row;
+  }
+
+  /** Trigger image file dialog and save asset */
+  _uploadImage(key, thumbEl, rowEl, hasConfig) {
+    const input = document.createElement('input');
+    input.type   = 'file';
+    input.accept = 'image/png,image/jpeg,image/gif,image/webp';
+
+    input.onchange = async (e) => {
+      const file = e.target.files[0];
+      if (!file) return;
+
+      try {
+        const dataUrl = await AssetManager.fileToDataUrl(file);
+        await AssetManager.save(key, dataUrl);
+
+        // Update thumbnail
+        thumbEl.innerHTML = '';
+        const img = document.createElement('img');
+        img.src = dataUrl;
+        img.className = 'asset-thumb-img';
+        thumbEl.appendChild(img);
+
+        UI.showNotification(`이미지 업로드 완료`);
+
+        // If has config support, show config editor
+        if (hasConfig) this._showSpriteConfigDialog(key, dataUrl, rowEl);
+      } catch (err) {
+        UI.showNotification('업로드 실패: ' + err.message);
+      }
+    };
+
+    input.click();
+  }
+
+  /** Show sprite sheet config dialog after image upload */
+  _showSpriteConfigDialog(key, dataUrl, afterEl) {
+    // Remove existing dialog
+    document.getElementById('sprite-config-dialog')?.remove();
+
+    const dialog = document.createElement('div');
+    dialog.id        = 'sprite-config-dialog';
+    dialog.className = 'sprite-config-dialog';
+    dialog.innerHTML = `
+      <h4 style="color:var(--accent-gold);margin-bottom:8px">스프라이트 시트 설정 (선택사항)</h4>
+      <p style="font-size:0.78rem;color:var(--text-secondary);margin-bottom:10px">
+        단일 이미지라면 기본값(프레임 1개)을 사용하세요.
+      </p>
+      <div class="form-row">
+        <div class="form-group">
+          <label>프레임 너비 (px)</label>
+          <input type="number" id="sc-fw" value="64" min="1">
+        </div>
+        <div class="form-group">
+          <label>프레임 높이 (px)</label>
+          <input type="number" id="sc-fh" value="64" min="1">
+        </div>
+      </div>
+      <p style="font-size:0.78rem;color:var(--text-secondary);margin:8px 0 4px">프레임 범위 (0부터 시작)</p>
+      <div class="form-row">
+        <div class="form-group"><label>idle 시작</label><input type="number" id="sc-idle-s" value="0" min="0"></div>
+        <div class="form-group"><label>idle 끝</label><input type="number" id="sc-idle-e" value="0" min="0"></div>
+      </div>
+      <div class="form-row">
+        <div class="form-group"><label>move 시작</label><input type="number" id="sc-move-s" value="0" min="0"></div>
+        <div class="form-group"><label>move 끝</label><input type="number" id="sc-move-e" value="0" min="0"></div>
+      </div>
+      <div class="form-row">
+        <div class="form-group"><label>attack 시작</label><input type="number" id="sc-atk-s" value="0" min="0"></div>
+        <div class="form-group"><label>attack 끝</label><input type="number" id="sc-atk-e" value="0" min="0"></div>
+      </div>
+      <div class="form-row">
+        <div class="form-group"><label>hit 시작</label><input type="number" id="sc-hit-s" value="0" min="0"></div>
+        <div class="form-group"><label>hit 끝</label><input type="number" id="sc-hit-e" value="0" min="0"></div>
+      </div>
+      <div class="form-row">
+        <div class="form-group"><label>death 시작</label><input type="number" id="sc-dth-s" value="0" min="0"></div>
+        <div class="form-group"><label>death 끝</label><input type="number" id="sc-dth-e" value="0" min="0"></div>
+      </div>
+      <div class="form-actions">
+        <button class="btn-small btn-primary" id="sc-save">저장</button>
+        <button class="btn-small" id="sc-skip">건너뛰기 (단일 이미지)</button>
+      </div>
+    `;
+
+    // Insert after the row
+    afterEl.insertAdjacentElement('afterend', dialog);
+
+    const getInt = id => parseInt(document.getElementById(id)?.value) || 0;
+
+    document.getElementById('sc-skip').onclick = () => dialog.remove();
+    document.getElementById('sc-save').onclick = async () => {
+      const config = {
+        frameWidth:  getInt('sc-fw'),
+        frameHeight: getInt('sc-fh'),
+        animations: {
+          idle:   { start: getInt('sc-idle-s'), end: getInt('sc-idle-e') },
+          move:   { start: getInt('sc-move-s'), end: getInt('sc-move-e') },
+          attack: { start: getInt('sc-atk-s'),  end: getInt('sc-atk-e')  },
+          hit:    { start: getInt('sc-hit-s'),  end: getInt('sc-hit-e')  },
+          death:  { start: getInt('sc-dth-s'),  end: getInt('sc-dth-e')  }
+        }
+      };
+      await AssetManager.save(key + '_config', JSON.stringify(config));
+      dialog.remove();
+      UI.showNotification('스프라이트 설정 저장됨');
+    };
+  }
+
+  /** Build an audio asset row with upload/preview/delete buttons */
+  async _buildAudioRow(key, label) {
+    const row = document.createElement('div');
+    row.className = 'asset-row';
+    row.id = `asset-row-${key}`;
+
+    const nameEl = document.createElement('span');
+    nameEl.className = 'asset-label';
+    nameEl.textContent = label;
+    row.appendChild(nameEl);
+
+    // Status indicator
+    const statusEl = document.createElement('span');
+    statusEl.className = 'asset-status';
+    const existingUrl = await AssetManager.load(key);
+    statusEl.textContent = existingUrl ? '✓ 업로드됨' : '기본값 사용';
+    statusEl.style.color  = existingUrl ? '#27ae60' : 'var(--text-secondary)';
+    row.appendChild(statusEl);
+
+    // Preview (play) button
+    const previewBtn = document.createElement('button');
+    previewBtn.className = 'btn-small';
+    previewBtn.textContent = '▶';
+    previewBtn.disabled = !existingUrl;
+    previewBtn.onclick = () => {
+      if (!existingUrl) return;
+      const a = new Audio(existingUrl);
+      a.volume = 0.5;
+      a.play().catch(() => {});
+    };
+    row.appendChild(previewBtn);
+
+    // Upload button
+    const uploadBtn = document.createElement('button');
+    uploadBtn.className = 'btn-small btn-primary';
+    uploadBtn.textContent = '업로드';
+    uploadBtn.onclick = () => this._uploadAudio(key, label, statusEl, previewBtn);
+    row.appendChild(uploadBtn);
+
+    // Delete button
+    const delBtn = document.createElement('button');
+    delBtn.className = 'btn-small btn-danger';
+    delBtn.textContent = '삭제';
+    delBtn.onclick = async () => {
+      await AssetManager.delete(key);
+      statusEl.textContent = '기본값 사용';
+      statusEl.style.color  = 'var(--text-secondary)';
+      previewBtn.disabled   = true;
+      await AudioManager.reloadCustomAsset(key);
+      UI.showNotification(`${label} 삭제됨`);
+    };
+    row.appendChild(delBtn);
+
+    return row;
+  }
+
+  /** Trigger audio file dialog and save asset */
+  _uploadAudio(key, label, statusEl, previewBtn) {
+    const input = document.createElement('input');
+    input.type   = 'file';
+    input.accept = 'audio/mp3,audio/mpeg,audio/ogg,audio/wav,audio/*';
+
+    input.onchange = async (e) => {
+      const file = e.target.files[0];
+      if (!file) return;
+
+      try {
+        const dataUrl = await AssetManager.fileToDataUrl(file);
+        await AssetManager.save(key, dataUrl);
+        await AudioManager.reloadCustomAsset(key);
+
+        statusEl.textContent = '✓ 업로드됨';
+        statusEl.style.color  = '#27ae60';
+        previewBtn.disabled   = false;
+        previewBtn.onclick    = () => {
+          const a = new Audio(dataUrl);
+          a.volume = 0.5;
+          a.play().catch(() => {});
+        };
+        UI.showNotification(`${label} 업로드 완료`);
+      } catch (err) {
+        UI.showNotification('업로드 실패: ' + err.message);
+      }
+    };
+
+    input.click();
   }
 
   // ─── Import / Export ───────────────────────────────────────────────────────
