@@ -1,0 +1,25 @@
+{
+  "id": "dungeon_1",
+  "name": "균열된 거울",
+  "nodes": [
+    {"id": "node_0", "type": "start", "x": 400, "y": 570, "label": "시작", "connections": ["node_1", "node_2"]},
+    {"id": "node_1", "type": "battle", "x": 210, "y": 430, "label": "⚔ 전투", "enemies": ["phantom"], "connections": ["node_3"]},
+    {"id": "node_2", "type": "event", "x": 590, "y": 430, "label": "? 이벤트", "connections": ["node_4"]},
+    {"id": "node_3", "type": "reward", "x": 210, "y": 290, "label": "★ 보상", "connections": ["node_5"]},
+    {"id": "node_4", "type": "battle", "x": 590, "y": 290, "label": "⚔ 전투", "enemies": ["abnormality"], "connections": ["node_5"]},
+    {"id": "node_5", "type": "battle", "x": 400, "y": 190, "label": "⚔ 전투", "enemies": ["phantom", "phantom"], "connections": ["node_6"]},
+    {"id": "node_6", "type": "boss", "x": 400, "y": 95, "label": "☠ 보스", "enemies": ["mirror_guardian"], "connections": ["node_7"]},
+    {"id": "node_7", "type": "exit", "x": 400, "y": 20, "label": "✓ 출구", "connections": []}
+  ],
+  "events": [
+    {
+      "id": "event_1",
+      "title": "균열된 거울 조각",
+      "description": "바닥에 빛나는 거울 조각이 놓여 있다. 신비로운 빛이 흘러나오고 있다.",
+      "choices": [
+        {"text": "조각을 집어든다 (HP +20 회복)", "effect": {"type": "heal", "value": 20}},
+        {"text": "그냥 지나친다", "effect": {"type": "none"}}
+      ]
+    }
+  ]
+}

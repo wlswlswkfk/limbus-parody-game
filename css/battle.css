@@ -1,0 +1,464 @@
+/* ─── Battle Layout ─── */
+#screen-battle {
+  display: flex;
+  flex-direction: column;
+  background: radial-gradient(ellipse at 50% 30%, #120510 0%, #0a0a0f 70%);
+}
+
+.battle-header {
+  display: flex;
+  align-items: center;
+  padding: 10px 20px;
+  border-bottom: 1px solid var(--border-color);
+  background: var(--bg-secondary);
+  flex-shrink: 0;
+}
+
+.battle-header h2 {
+  color: var(--accent-gold);
+  font-size: 1.1rem;
+  letter-spacing: 0.1em;
+}
+
+.turn-indicator {
+  margin-left: auto;
+  color: var(--text-secondary);
+  font-size: 0.9rem;
+  padding: 4px 12px;
+  border: 1px solid var(--border-color);
+  background: var(--bg-card);
+}
+
+.turn-indicator.active-turn {
+  color: var(--accent-gold);
+  border-color: var(--accent-gold);
+  animation: pulse 1s ease infinite alternate;
+}
+
+@keyframes pulse {
+  from { box-shadow: 0 0 4px rgba(243,156,18,0.3); }
+  to   { box-shadow: 0 0 12px rgba(243,156,18,0.6); }
+}
+
+/* ─── Arena ─── */
+.battle-arena {
+  display: flex;
+  flex: 1;
+  gap: 0;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.battle-side {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  gap: 12px;
+  padding: 16px 12px;
+  width: 220px;
+  flex-shrink: 0;
+  background: rgba(0,0,0,0.2);
+}
+
+.battle-center {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  padding: 8px 10px;
+  gap: 8px;
+  min-width: 0;
+}
+
+/* ─── Character Cards in Battle ─── */
+.battle-character {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  padding: 8px;
+  border: 1px solid var(--border-color);
+  background: var(--bg-card);
+  transition: all 0.2s;
+  position: relative;
+  width: 100%;
+}
+
+.battle-character.active-attacker {
+  border-color: var(--accent-gold);
+  box-shadow: 0 0 10px rgba(243,156,18,0.4);
+}
+
+.battle-character.active-target {
+  border-color: var(--accent-red-light);
+  box-shadow: 0 0 10px rgba(231,76,60,0.4);
+}
+
+.battle-character.dead {
+  opacity: 0.35;
+  filter: grayscale(1);
+}
+
+/* ─── Sprite ─── */
+.character-sprite {
+  width: 70px;
+  height: 100px;
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.sprite-head {
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  flex-shrink: 0;
+  position: relative;
+}
+
+.sprite-body {
+  width: 46px;
+  height: 52px;
+  clip-path: polygon(10% 0%, 90% 0%, 100% 100%, 0% 100%);
+  margin-top: -4px;
+  flex-shrink: 0;
+}
+
+.sprite-legs {
+  display: flex;
+  gap: 6px;
+  margin-top: -4px;
+}
+
+.sprite-leg {
+  width: 14px;
+  height: 20px;
+  border-radius: 0 0 4px 4px;
+}
+
+/* ─── Character Info ─── */
+.char-name {
+  font-size: 0.8rem;
+  color: var(--text-primary);
+  text-align: center;
+  letter-spacing: 0.05em;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.char-hp-text {
+  font-size: 0.72rem;
+  color: var(--text-secondary);
+  text-align: center;
+}
+
+/* ─── Damage Popup ─── */
+.damage-popup {
+  position: absolute;
+  font-size: 1.4rem;
+  font-weight: bold;
+  pointer-events: none;
+  z-index: 100;
+  text-shadow: 0 0 6px rgba(0,0,0,0.8);
+  animation: floatUp 0.9s ease forwards;
+  white-space: nowrap;
+}
+
+.damage-popup.damage-player {
+  color: #ff6b6b;
+}
+
+.damage-popup.damage-enemy {
+  color: #f9ca24;
+}
+
+.damage-popup.heal-popup {
+  color: #6bff6b;
+}
+
+@keyframes floatUp {
+  0%   { opacity: 1; transform: translateY(0) scale(1.2); }
+  40%  { opacity: 1; transform: translateY(-28px) scale(1); }
+  100% { opacity: 0; transform: translateY(-54px) scale(0.8); }
+}
+
+/* ─── Coin Display ─── */
+.coin-display {
+  display: flex;
+  gap: 10px;
+  justify-content: center;
+  align-items: center;
+  flex-wrap: wrap;
+  min-height: 60px;
+  padding: 6px;
+  background: rgba(0,0,0,0.3);
+  border: 1px solid var(--border-color);
+}
+
+.coin-display-label {
+  font-size: 0.8rem;
+  color: var(--text-secondary);
+  width: 100%;
+  text-align: center;
+  margin-bottom: 4px;
+}
+
+.coin {
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  border: 2px solid #555;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.2rem;
+  font-weight: bold;
+  perspective: 200px;
+  position: relative;
+}
+
+.coin-inner {
+  width: 100%;
+  height: 100%;
+  border-radius: 50%;
+  transform-style: preserve-3d;
+  transition: transform 0.0s;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.coin.flipping .coin-inner {
+  animation: coinFlip 0.7s ease forwards;
+}
+
+.coin.heads {
+  background: radial-gradient(circle, #f1c40f, #e67e22);
+  border-color: var(--accent-gold);
+  box-shadow: 0 0 8px rgba(243,156,18,0.5);
+}
+
+.coin.tails {
+  background: radial-gradient(circle, #34495e, #2c3e50);
+  border-color: #555;
+}
+
+.coin.pending {
+  background: radial-gradient(circle, #2a2a3a, #1a1a25);
+  border-color: #444;
+}
+
+.coin-face {
+  font-size: 1rem;
+  color: rgba(255,255,255,0.9);
+  user-select: none;
+}
+
+@keyframes coinFlip {
+  0%   { transform: rotateY(0deg); }
+  25%  { transform: rotateY(180deg); }
+  50%  { transform: rotateY(360deg); }
+  75%  { transform: rotateY(540deg); }
+  100% { transform: rotateY(720deg); }
+}
+
+/* ─── Battle Log ─── */
+.battle-log {
+  flex: 1;
+  overflow-y: auto;
+  padding: 8px 10px;
+  background: rgba(0,0,0,0.4);
+  border: 1px solid var(--border-color);
+  font-size: 0.8rem;
+  line-height: 1.7;
+  min-height: 80px;
+  color: var(--text-secondary);
+}
+
+.log-entry {
+  padding: 1px 0;
+  border-bottom: 1px solid rgba(255,255,255,0.04);
+}
+
+.log-entry.log-player { color: #7ec8e3; }
+.log-entry.log-enemy  { color: #f08080; }
+.log-entry.log-system { color: var(--accent-gold); font-style: italic; }
+.log-entry.log-heal   { color: #90ee90; }
+
+/* ─── Battle Controls ─── */
+.battle-controls {
+  background: var(--bg-secondary);
+  border-top: 1px solid var(--border-color);
+  padding: 12px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  flex-shrink: 0;
+}
+
+.skill-selection {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  justify-content: center;
+}
+
+.skill-selector-block {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  align-items: center;
+  flex: 1;
+  min-width: 180px;
+  max-width: 280px;
+}
+
+.skill-selector-label {
+  font-size: 0.75rem;
+  color: var(--text-secondary);
+  text-align: center;
+  letter-spacing: 0.05em;
+}
+
+.skill-cards {
+  display: flex;
+  gap: 5px;
+  justify-content: center;
+  flex-wrap: wrap;
+}
+
+/* ─── Skill Card ─── */
+.skill-card {
+  background: var(--bg-card);
+  border: 1px solid var(--border-color);
+  padding: 8px 10px;
+  cursor: pointer;
+  transition: all 0.2s;
+  min-width: 90px;
+  max-width: 110px;
+  text-align: center;
+  position: relative;
+}
+
+.skill-card:hover {
+  border-color: var(--accent-gold);
+  box-shadow: 0 0 8px rgba(243,156,18,0.25);
+  transform: translateY(-2px);
+}
+
+.skill-card.selected {
+  border-color: var(--accent-gold);
+  background: #1e1408;
+  box-shadow: 0 0 10px rgba(243,156,18,0.4);
+}
+
+.skill-card.disabled-card {
+  opacity: 0.4;
+  cursor: not-allowed;
+  pointer-events: none;
+}
+
+.skill-card-name {
+  font-size: 0.82rem;
+  color: var(--text-primary);
+  margin-bottom: 3px;
+  font-weight: bold;
+}
+
+.skill-card-type {
+  font-size: 0.7rem;
+  margin-bottom: 3px;
+}
+
+.type-참격 { color: #e74c3c; }
+.type-관통 { color: #3498db; }
+.type-타격 { color: #f39c12; }
+
+.skill-card-coins {
+  font-size: 0.68rem;
+  color: var(--text-secondary);
+}
+
+.skill-card-power {
+  font-size: 0.72rem;
+  color: var(--accent-gold);
+}
+
+/* ─── Start Battle Button ─── */
+#btn-battle-start {
+  width: 100%;
+  padding: 10px;
+  font-size: 1rem;
+}
+
+/* ─── Result overlay within battle ─── */
+.battle-result-overlay {
+  position: absolute;
+  inset: 0;
+  background: rgba(0,0,0,0.75);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 50;
+}
+
+.battle-result-box {
+  background: var(--bg-card);
+  border: 2px solid var(--accent-gold);
+  padding: 40px 60px;
+  text-align: center;
+  box-shadow: 0 0 40px rgba(243,156,18,0.3);
+}
+
+.battle-result-box h2 {
+  font-size: 2rem;
+  margin-bottom: 16px;
+}
+
+/* ─── Result Screen ─── */
+#screen-result {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: radial-gradient(ellipse at center, #100a0a 0%, #0a0a0f 70%);
+}
+
+.result-container {
+  text-align: center;
+  padding: 40px;
+}
+
+.result-title {
+  font-size: 2.5rem;
+  margin-bottom: 24px;
+  letter-spacing: 0.15em;
+}
+
+.result-title.victory { color: var(--accent-gold); text-shadow: 0 0 20px rgba(243,156,18,0.6); }
+.result-title.defeat  { color: var(--accent-red-light); text-shadow: 0 0 20px rgba(231,76,60,0.6); }
+
+.result-stats {
+  color: var(--text-secondary);
+  font-size: 0.95rem;
+  margin-bottom: 32px;
+  line-height: 1.8;
+  background: var(--bg-card);
+  border: 1px solid var(--border-color);
+  padding: 16px 32px;
+  min-width: 300px;
+}
+
+.result-buttons {
+  display: flex;
+  gap: 12px;
+  justify-content: center;
+  flex-wrap: wrap;
+}
+
+.result-buttons .btn-primary,
+.result-buttons .btn-secondary {
+  width: 180px;
+}

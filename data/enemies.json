@@ -1,0 +1,114 @@
+{
+  "enemies": [
+    {
+      "id": "phantom",
+      "name": "환영",
+      "color": "#9b59b6",
+      "hp": 60,
+      "spd": 4,
+      "def": 5,
+      "skills": [
+        {
+          "id": "enemy_phantom_1",
+          "name": "그림자 할퀴기",
+          "type": "참격",
+          "coins": 2,
+          "basePower": 2,
+          "coinPower": 3,
+          "coinChance": 0.55,
+          "description": "그림자로 만든 발톱으로 긁어댄다"
+        },
+        {
+          "id": "enemy_phantom_2",
+          "name": "공허의 손길",
+          "type": "타격",
+          "coins": 1,
+          "basePower": 4,
+          "coinPower": 5,
+          "coinChance": 0.6,
+          "description": "차가운 공허로 상대를 강타한다"
+        }
+      ]
+    },
+    {
+      "id": "abnormality",
+      "name": "이상체",
+      "color": "#e67e22",
+      "hp": 100,
+      "spd": 5,
+      "def": 10,
+      "skills": [
+        {
+          "id": "enemy_abnorm_1",
+          "name": "돌연변이 강타",
+          "type": "타격",
+          "coins": 2,
+          "basePower": 4,
+          "coinPower": 5,
+          "coinChance": 0.6,
+          "description": "기형적인 팔로 힘껏 내리친다"
+        },
+        {
+          "id": "enemy_abnorm_2",
+          "name": "독액 분사",
+          "type": "관통",
+          "coins": 2,
+          "basePower": 3,
+          "coinPower": 4,
+          "coinChance": 0.6,
+          "description": "독이 든 액체를 내뿜는다"
+        },
+        {
+          "id": "enemy_abnorm_3",
+          "name": "광란의 일격",
+          "type": "타격",
+          "coins": 1,
+          "basePower": 8,
+          "coinPower": 10,
+          "coinChance": 0.5,
+          "description": "미쳐버린 힘으로 전력을 다해 친다"
+        }
+      ]
+    },
+    {
+      "id": "mirror_guardian",
+      "name": "거울의 수호자",
+      "color": "#c0392b",
+      "hp": 200,
+      "spd": 6,
+      "def": 20,
+      "skills": [
+        {
+          "id": "enemy_guardian_1",
+          "name": "거울 파편",
+          "type": "관통",
+          "coins": 3,
+          "basePower": 4,
+          "coinPower": 5,
+          "coinChance": 0.6,
+          "description": "거울 조각을 여러 방향으로 쏜다"
+        },
+        {
+          "id": "enemy_guardian_2",
+          "name": "반사의 검",
+          "type": "참격",
+          "coins": 2,
+          "basePower": 7,
+          "coinPower": 8,
+          "coinChance": 0.65,
+          "description": "거울의 힘을 담은 검으로 베어낸다"
+        },
+        {
+          "id": "enemy_guardian_3",
+          "name": "균열의 해방",
+          "type": "타격",
+          "coins": 1,
+          "basePower": 15,
+          "coinPower": 20,
+          "coinChance": 0.55,
+          "description": "균열된 거울의 힘을 폭발시킨다"
+        }
+      ]
+    }
+  ]
+}
