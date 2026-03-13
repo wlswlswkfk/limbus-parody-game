@@ -101,6 +101,30 @@ const AssetManager = {
     });
   },
 
+  /** Delete all stored assets. */
+  async clearAll() {
+    // Clear localStorage entries
+    const prefix = 'limbus_asset_';
+    const keysToRemove = [];
+    for (let i = 0; i < localStorage.length; i++) {
+      const k = localStorage.key(i);
+      if (k && k.startsWith(prefix)) keysToRemove.push(k);
+    }
+    keysToRemove.forEach(k => localStorage.removeItem(k));
+
+    if (!this._db) return;
+    return new Promise(resolve => {
+      try {
+        const tx = this._db.transaction(this._STORE, 'readwrite');
+        tx.objectStore(this._STORE).clear();
+        tx.oncomplete = () => resolve();
+        tx.onerror    = () => resolve();
+      } catch (e) {
+        resolve();
+      }
+    });
+  },
+
   /** Return all stored keys. */
   async listKeys() {
     const lsKeys = [];

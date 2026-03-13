@@ -329,13 +329,24 @@ class BattleRenderer {
   }
 
   /**
-   * Walk the attacker toward the target (move animation).
+   * Walk the attacker toward the target — stops just in front of them.
    * Returns a Promise that resolves when movement finishes.
    */
-  walkTo(attacker, _target) {
-    const us = this._us(attacker);
+  walkTo(attacker, target) {
+    const us   = this._us(attacker);
+    const them = this._us(target);
     if (!us || !this._running) return Promise.resolve();
-    const destX = attacker.isPlayer ? this.W * 0.48 : this.W * 0.52;
+
+    let destX;
+    if (them) {
+      // Stop one character-width gap in front of the opponent
+      const offset = Math.min(this.W * 0.08, 50);
+      destX = attacker.isPlayer ? them.x - offset : them.x + offset;
+    } else {
+      // Fallback if target has no renderer state
+      destX = attacker.isPlayer ? this.W * 0.48 : this.W * 0.52;
+    }
+
     return this._moveTo(us, destX, us.homeY, 440);
   }
 
@@ -350,15 +361,23 @@ class BattleRenderer {
 
   /**
    * Play the attack animation for the given unit.
+   * The attacker lunges a few pixels forward during the strike, then snaps back.
    * Resolves when the one-shot animation completes.
    */
   playAttack(attacker) {
     const us = this._us(attacker);
     if (!us || !this._running) return Promise.resolve();
+
+    // Lunge forward ~20 px during the attack frame
+    const lunge = attacker.isPlayer ? 20 : -20;
+    const baseX  = us.x;
+    us.x = baseX + lunge;
+
     us.sprite.setAnimation('attack');
     return new Promise(resolve => {
       const check = () => {
         if (!this._running || us.sprite.isAnimDone()) {
+          us.x = baseX; // snap back to pre-lunge position
           if (this._running) us.sprite.setAnimation('idle');
           resolve();
         } else {
@@ -370,7 +389,7 @@ class BattleRenderer {
   }
 
   /**
-   * Show hit effect (flash + shake + particles) on target.
+   * Show hit effect (flash + shake + knockback + shockwave) on target.
    * @param {Object} target    — unit object
    * @param {string} skillType — '참격'|'관통'|'타격'
    */
@@ -379,13 +398,23 @@ class BattleRenderer {
     if (!us) return;
     us.sprite.setAnimation('hit');
     this._spawnParticles(us.x, us.y - 40, skillType);
+    this._drawShockwave(us.x, us.y - 40);
 
-    // Screen-shake for target sprite
-    let count = 5;
+    // Knockback: push target away, then return
+    const knockDist = target.isPlayer ? -28 : 28;
+    const origX     = us.x;
+    const knockX    = origX + knockDist;
+    us.x = knockX;
+    setTimeout(() => {
+      if (us) us.x = origX;
+    }, 180);
+
+    // Screen-shake on target sprite
+    let shakeCount = 6;
     const shake = () => {
-      if (count-- <= 0) { us.shakeOff = 0; return; }
+      if (shakeCount-- <= 0) { us.shakeOff = 0; return; }
       us.shakeOff = (Math.random() - 0.5) * 12;
-      setTimeout(shake, 60);
+      setTimeout(shake, 55);
     };
     shake();
   }
@@ -438,6 +467,34 @@ class BattleRenderer {
       };
       requestAnimationFrame(step);
     });
+  }
+
+  _drawShockwave(x, y) {
+    // Schedule a quick expanding ring drawn on the canvas for a few frames
+    const startTime        = performance.now();
+    const duration         = 320;
+    const MAX_RADIUS       = 70;
+    const draw = () => {
+      if (!this._running || !this._ctx) return;
+      const elapsed = performance.now() - startTime;
+      if (elapsed >= duration) return;
+      const p = elapsed / duration;           // 0 → 1
+      const radius   = 10 + p * MAX_RADIUS;
+      const alpha    = (1 - p) * 0.55;
+      const ctx      = this._ctx;
+      ctx.save();
+      ctx.globalAlpha  = alpha;
+      ctx.strokeStyle  = '#fff';
+      ctx.lineWidth    = 3 * (1 - p);
+      ctx.shadowColor  = '#fff';
+      ctx.shadowBlur   = 12;
+      ctx.beginPath();
+      ctx.arc(x, y, radius, 0, Math.PI * 2);
+      ctx.stroke();
+      ctx.restore();
+      requestAnimationFrame(draw);
+    };
+    requestAnimationFrame(draw);
   }
 
   _spawnParticles(x, y, skillType) {

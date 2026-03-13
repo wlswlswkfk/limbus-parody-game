@@ -312,6 +312,21 @@ class EditorSystem {
 
     container.innerHTML = '';
 
+    // ── Bulk delete toolbar ────────────────────────────────────────────────
+    const toolbar = document.createElement('div');
+    toolbar.className = 'asset-toolbar';
+    const bulkDelBtn = document.createElement('button');
+    bulkDelBtn.className = 'btn-small btn-danger';
+    bulkDelBtn.textContent = '⚠ 전체 에셋 초기화';
+    bulkDelBtn.onclick = async () => {
+      if (!confirm('모든 커스텀 에셋을 삭제하시겠습니까? 이 작업은 되돌릴 수 없습니다.')) return;
+      await AssetManager.clearAll();
+      UI.showNotification('모든 에셋이 삭제되었습니다.');
+      this._renderAssets();
+    };
+    toolbar.appendChild(bulkDelBtn);
+    container.appendChild(toolbar);
+
     // ── Character Sprites ──────────────────────────────────────────────────
     container.appendChild(this._sectionHeader('캐릭터 스프라이트'));
 
@@ -409,8 +424,8 @@ class EditorSystem {
 
     // Upload button
     const uploadBtn = document.createElement('button');
-    uploadBtn.className = 'btn-small btn-primary';
-    uploadBtn.textContent = '업로드';
+    uploadBtn.className = 'btn-asset-upload btn-primary';
+    uploadBtn.textContent = '📁 업로드';
     uploadBtn.onclick = () => this._uploadImage(key, thumb, row, hasConfig);
     row.appendChild(uploadBtn);
 
@@ -419,6 +434,7 @@ class EditorSystem {
     delBtn.className = 'btn-small btn-danger';
     delBtn.textContent = '삭제';
     delBtn.onclick = async () => {
+      if (!confirm(`"${label}" 에셋을 삭제하시겠습니까?`)) return;
       await AssetManager.delete(key);
       if (hasConfig) await AssetManager.delete(key + '_config');
       thumb.innerHTML = '없음';
@@ -548,12 +564,21 @@ class EditorSystem {
     nameEl.textContent = label;
     row.appendChild(nameEl);
 
-    // Status indicator
+    // Status / filename + duration
     const statusEl = document.createElement('span');
     statusEl.className = 'asset-status';
     const existingUrl = await AssetManager.load(key);
-    statusEl.textContent = existingUrl ? '✓ 업로드됨' : '기본값 사용';
-    statusEl.style.color  = existingUrl ? '#27ae60' : 'var(--text-secondary)';
+    const existingMeta = await AssetManager.load(key + '_meta').catch(() => null);
+    if (existingUrl) {
+      const meta = existingMeta ? JSON.parse(existingMeta) : null;
+      statusEl.textContent = meta
+        ? `✓ ${meta.filename}${meta.duration ? '  (' + meta.duration + ')' : ''}`
+        : '✓ 업로드됨';
+      statusEl.style.color = '#27ae60';
+    } else {
+      statusEl.textContent = '기본값 사용';
+      statusEl.style.color  = 'var(--text-secondary)';
+    }
     row.appendChild(statusEl);
 
     // Preview (play) button
@@ -571,8 +596,8 @@ class EditorSystem {
 
     // Upload button
     const uploadBtn = document.createElement('button');
-    uploadBtn.className = 'btn-small btn-primary';
-    uploadBtn.textContent = '업로드';
+    uploadBtn.className = 'btn-asset-upload btn-primary';
+    uploadBtn.textContent = '📁 업로드';
     uploadBtn.onclick = () => this._uploadAudio(key, label, statusEl, previewBtn);
     row.appendChild(uploadBtn);
 
@@ -581,7 +606,9 @@ class EditorSystem {
     delBtn.className = 'btn-small btn-danger';
     delBtn.textContent = '삭제';
     delBtn.onclick = async () => {
+      if (!confirm(`"${label}"을(를) 삭제하시겠습니까?`)) return;
       await AssetManager.delete(key);
+      await AssetManager.delete(key + '_meta').catch(err => console.warn('[AssetManager] meta delete failed:', err));
       statusEl.textContent = '기본값 사용';
       statusEl.style.color  = 'var(--text-secondary)';
       previewBtn.disabled   = true;
@@ -608,7 +635,17 @@ class EditorSystem {
         await AssetManager.save(key, dataUrl);
         await AudioManager.reloadCustomAsset(key);
 
-        statusEl.textContent = '✓ 업로드됨';
+        // Determine duration
+        const duration = await new Promise(resolve => {
+          const a = new Audio(dataUrl);
+          a.addEventListener('loadedmetadata', () => resolve(this._formatDuration(a.duration)));
+          a.addEventListener('error', () => resolve(''));
+        });
+
+        const meta = { filename: file.name, duration };
+        await AssetManager.save(key + '_meta', JSON.stringify(meta));
+
+        statusEl.textContent = `✓ ${file.name}${duration ? '  (' + duration + ')' : ''}`;
         statusEl.style.color  = '#27ae60';
         previewBtn.disabled   = false;
         previewBtn.onclick    = () => {
@@ -623,6 +660,13 @@ class EditorSystem {
     };
 
     input.click();
+  }
+
+  /** Format seconds as M:SS string, or '' if not finite. */
+  _formatDuration(seconds) {
+    const s = Math.round(seconds);
+    if (!isFinite(s)) return '';
+    return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`;
   }
 
   // ─── Import / Export ───────────────────────────────────────────────────────
