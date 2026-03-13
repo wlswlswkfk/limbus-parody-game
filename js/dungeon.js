@@ -358,9 +358,9 @@ class DungeonSystem {
   // ─── Event ─────────────────────────────────────────────────────────────────
 
   _triggerEvent() {
-    const events  = this.dungeonData.events || [];
+    const events = this.dungeonData.events || [];
+    if (!events.length) { this._redraw(); return; }
     const eventData = events[Math.floor(Math.random() * events.length)];
-    if (!eventData) { this._redraw(); return; }
 
     document.getElementById('event-title').textContent       = eventData.title;
     document.getElementById('event-description').textContent = eventData.description;

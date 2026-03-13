@@ -206,8 +206,7 @@ function _showResult(type, data = {}) {
     if (data.dungeonClear) {
       statsEl.innerHTML = `
         <div>던전 <strong style="color:var(--accent-gold)">${GameData.dungeon?.name || ''}</strong> 클리어!</div>
-        <div>승리 횟수: ${GameState.battleStats.victories}</div>
-        <div>처치된 전투: ${GameState.battleStats.victories}</div>
+        <div>승리한 전투: ${GameState.battleStats.victories}</div>
       `;
       contBtn.textContent = '메인 메뉴로';
       contBtn.onclick = () => {
