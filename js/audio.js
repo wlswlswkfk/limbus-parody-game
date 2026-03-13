@@ -1,6 +1,7 @@
 /**
  * audio.js — AudioManager using Web Audio API
  * Generates simple tones/sounds since no external audio assets are used.
+ * Also supports custom audio files uploaded via AssetManager.
  */
 
 const AudioManager = {
@@ -9,6 +10,13 @@ const AudioManager = {
   _bgmGain: null,
   _sfxGain: null,
   _muted: false,
+
+  /** Cached custom audio elements: sfxKey -> HTMLAudioElement */
+  _customSFX: {},
+  /** Cached custom BGM elements: bgmKey -> HTMLAudioElement */
+  _customBGM: {},
+  /** The currently playing BGM HTMLAudioElement (if custom) */
+  _activeBGMAudio: null,
 
   _getCtx() {
     if (!this._ctx) {
@@ -56,49 +64,112 @@ const AudioManager = {
   },
 
   /**
+   * Load all custom audio assets from AssetManager into cache.
+   * Call once after AssetManager.init().
+   */
+  async loadCustomAssets() {
+    if (typeof AssetManager === 'undefined') return;
+
+    const sfxKeys = [
+      'sfx_hit', 'sfx_coin', 'sfx_coin_heads', 'sfx_coin_tails',
+      'sfx_victory', 'sfx_defeat', 'sfx_heal', 'sfx_navigate',
+      'sfx_select', 'sfx_boss'
+    ];
+    for (const key of sfxKeys) {
+      try {
+        const url = await AssetManager.load(key);
+        if (url) this._customSFX[key] = this._makeAudio(url);
+      } catch (_) {}
+    }
+
+    const bgmKeys = ['bgm_menu', 'bgm_battle', 'bgm_dungeon'];
+    for (const key of bgmKeys) {
+      try {
+        const url = await AssetManager.load(key);
+        if (url) this._customBGM[key] = this._makeAudio(url, true);
+      } catch (_) {}
+    }
+  },
+
+  _makeAudio(src, loop = false) {
+    const a  = new Audio();
+    a.src    = src;
+    a.loop   = loop;
+    a.volume = loop ? 0.25 : 0.5;
+    return a;
+  },
+
+  /**
+   * Reload a single custom asset from AssetManager (called after upload).
+   * @param {string} key — e.g. 'sfx_hit' or 'bgm_battle'
+   */
+  async reloadCustomAsset(key) {
+    if (typeof AssetManager === 'undefined') return;
+    try {
+      const url = await AssetManager.load(key);
+      const isLoop = key.startsWith('bgm_');
+      if (url) {
+        if (isLoop) this._customBGM[key] = this._makeAudio(url, true);
+        else        this._customSFX[key] = this._makeAudio(url, false);
+      } else {
+        delete this._customBGM[key];
+        delete this._customSFX[key];
+      }
+    } catch (_) {}
+  },
+
+  /**
    * Play a sound effect by type.
+   * If a custom SFX has been uploaded for this type, plays that instead.
    * @param {'coin'|'hit'|'victory'|'defeat'|'navigate'|'heal'|'select'} type
    */
   playSFX(type) {
+    if (this._muted) return;
+
     const ctx = this._getCtx();
-    if (!ctx || this._muted) return;
+    if (ctx && ctx.state === 'suspended') ctx.resume();
 
-    // Resume if suspended (required by browser autoplay policy)
-    if (ctx.state === 'suspended') ctx.resume();
+    // Try custom SFX
+    const sfxKey = 'sfx_' + type;
+    if (this._customSFX[sfxKey]) {
+      try {
+        const a = this._customSFX[sfxKey].cloneNode();
+        a.volume = 0.5;
+        a.play().catch(() => {});
+        return;
+      } catch (_) {}
+    }
 
+    if (!ctx) return;
+
+    // Generated fallback
     switch (type) {
       case 'coin':
-        // Short metallic ping
         this._tone(880,  0.08, 'sine',   0.5);
         this._tone(1320, 0.06, 'sine',   0.3, 0.05);
         break;
 
       case 'coin_heads':
-        // Higher ping = success
         this._tone(660,  0.06, 'sine',   0.4);
         this._tone(990,  0.08, 'sine',   0.5, 0.06);
         this._tone(1320, 0.1,  'sine',   0.4, 0.12);
         break;
 
       case 'coin_tails':
-        // Lower thud = failure
         this._tone(220, 0.12, 'sawtooth', 0.3);
         this._tone(110, 0.15, 'square',   0.2, 0.08);
         break;
 
       case 'hit':
-        // Impact sound
         this._tone(150, 0.05, 'sawtooth', 0.6);
         this._tone(80,  0.1,  'square',   0.4, 0.04);
         break;
 
       case 'victory':
-        // Short fanfare
         [523, 659, 784, 1047].forEach((f, i) => this._tone(f, 0.18, 'sine', 0.4, i * 0.12));
         break;
 
       case 'defeat':
-        // Descending tones
         [400, 300, 200, 100].forEach((f, i) => this._tone(f, 0.2, 'sawtooth', 0.35, i * 0.18));
         break;
 
@@ -126,15 +197,32 @@ const AudioManager = {
 
   /** Simple looping BGM (generated, not from URL) */
   _bgmInterval: null,
-  _bgmNoteIndex: 0,
 
-  playBGM(url) {
-    // If URL provided and not file://, attempt to load audio file
+  /**
+   * Play BGM. Checks for custom bgm under the given sceneKey first.
+   * @param {string} [url]       — optional HTTP/HTTPS URL
+   * @param {string} [sceneKey]  — 'menu' | 'battle' | 'dungeon'
+   */
+  playBGM(url, sceneKey) {
+    this.stopBGM();
+
+    // Check custom BGM for scene
+    const customKey = sceneKey ? `bgm_${sceneKey}` : null;
+    if (customKey && this._customBGM[customKey]) {
+      const a = this._customBGM[customKey];
+      a.currentTime = 0;
+      a.play().catch(() => {});
+      this._activeBGMAudio = a;
+      return;
+    }
+
+    // HTTP URL provided
     if (url && !url.startsWith('file:')) {
       this._playBGMFromURL(url);
       return;
     }
-    // Otherwise generate a simple ambient loop
+
+    // Generated ambient loop
     this._startGeneratedBGM();
   },
 
@@ -144,10 +232,10 @@ const AudioManager = {
     if (ctx.state === 'suspended') ctx.resume();
 
     const audio = new Audio(url);
-    audio.loop = true;
+    audio.loop   = true;
     audio.volume = 0.25;
     audio.play().catch(() => {});
-    this._bgmAudio = audio;
+    this._activeBGMAudio = audio;
   },
 
   _startGeneratedBGM() {
@@ -171,14 +259,16 @@ const AudioManager = {
       clearInterval(this._bgmInterval);
       this._bgmInterval = null;
     }
-    if (this._bgmAudio) {
-      this._bgmAudio.pause();
-      this._bgmAudio = null;
+    if (this._activeBGMAudio) {
+      this._activeBGMAudio.pause();
+      this._activeBGMAudio = null;
     }
   },
 
   toggleMute() {
     this._muted = !this._muted;
+    if (this._muted && this._activeBGMAudio) this._activeBGMAudio.pause();
+    else if (!this._muted && this._activeBGMAudio) this._activeBGMAudio.play().catch(() => {});
     return this._muted;
   }
 };

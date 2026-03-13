@@ -462,3 +462,149 @@
 .result-buttons .btn-secondary {
   width: 180px;
 }
+
+/* ═══════════════════════════════════════════════════
+   Canvas 2D Battle Renderer — layout & overlay styles
+   ═══════════════════════════════════════════════════ */
+
+/* ─── Canvas fills the entire battle arena ─── */
+/* Overrides the old three-column flex layout */
+.battle-arena {
+  position: relative;
+  display: block;  /* override display:flex from legacy rule */
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+  background: #060210;
+}
+
+.battle-canvas {
+  display: block;
+  width: 100%;
+  height: 100%;
+  min-height: 220px;
+}
+
+/* ─── Coin flip overlay ─── */
+.battle-coins-overlay {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  z-index: 20;
+  background: rgba(0, 0, 0, 0.88);
+  border: 1px solid var(--accent-gold);
+  padding: 14px 20px;
+  min-width: 240px;
+  box-shadow: 0 0 24px rgba(243,156,18,0.35);
+}
+
+.battle-coins-overlay.hidden {
+  display: none;
+}
+
+/* ─── Battle log (compact overlay, bottom-left of arena) ─── */
+.battle-log-overlay {
+  position: absolute;
+  bottom: 6px;
+  left: 8px;
+  width: clamp(200px, 38%, 340px);
+  max-height: 110px;
+  overflow-y: auto;
+  background: rgba(0, 0, 0, 0.62);
+  border: 1px solid rgba(255,255,255,0.08);
+  padding: 6px 8px;
+  font-size: 0.72rem;
+  line-height: 1.6;
+  color: var(--text-secondary);
+  pointer-events: none;
+  z-index: 10;
+}
+
+.battle-log-overlay .log-entry {
+  border-bottom: none;
+  padding: 0;
+}
+
+/* ─── Asset Manager Tab ─── */
+.asset-manager-content {
+  padding: 4px 0 20px;
+  overflow-y: auto;
+  max-height: calc(100vh - 200px);
+}
+
+.asset-section-header {
+  color: var(--accent-gold);
+  font-size: 0.82rem;
+  letter-spacing: 0.08em;
+  margin: 18px 0 8px;
+  border-bottom: 1px solid rgba(243,156,18,0.2);
+  padding-bottom: 4px;
+}
+
+.asset-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 4px;
+  border-bottom: 1px solid rgba(255,255,255,0.05);
+  flex-wrap: wrap;
+}
+
+.asset-label {
+  min-width: 130px;
+  font-size: 0.82rem;
+  color: var(--text-primary);
+  flex-shrink: 0;
+}
+
+.asset-status {
+  font-size: 0.75rem;
+  min-width: 90px;
+  flex-shrink: 0;
+}
+
+.asset-thumb {
+  width: 48px;
+  height: 48px;
+  border: 1px solid var(--border-color);
+  background: var(--bg-card);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.68rem;
+  color: var(--text-secondary);
+  flex-shrink: 0;
+  overflow: hidden;
+}
+
+.asset-thumb-img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
+
+/* ─── Sprite Config Dialog ─── */
+.sprite-config-dialog {
+  background: var(--bg-card);
+  border: 1px solid var(--accent-gold);
+  padding: 14px 18px;
+  margin: 8px 0 12px;
+  box-shadow: 0 0 16px rgba(243,156,18,0.2);
+}
+
+/* ─── Mobile responsive canvas ─── */
+@media (max-width: 600px) {
+  .battle-canvas {
+    min-height: 220px;
+  }
+
+  .battle-log-overlay {
+    display: none;
+  }
+
+  .battle-coins-overlay {
+    width: 90%;
+    min-width: unset;
+  }
+}

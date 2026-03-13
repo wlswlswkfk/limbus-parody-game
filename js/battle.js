@@ -1,17 +1,21 @@
 /**
  * battle.js — BattleSystem
  * Manages the full turn-based battle sequence including coin flip animations.
+ * Integrates with BattleRenderer (battle-renderer.js) for Canvas 2D visuals.
  */
 
 class BattleSystem {
   constructor() {
-    this.party    = [];   // { id, name, color, maxHP, currentHP, spd, def, skills, isPlayer, spriteEl, hpBarEl, hpTextEl }
-    this.enemies  = [];   // same shape, isPlayer: false
+    this.party    = [];   // { id, name, color, maxHP, currentHP, spd, def, skills, isPlayer }
+    this.enemies  = [];
     this.onComplete = null;
     this.phase    = 'idle'; // 'selection' | 'resolution' | 'ended'
-    this.selectedSkills = {}; // sinnerId -> skill object
+    this.selectedSkills = {};
     this.turnNumber = 1;
     this.damageDealt = 0;
+
+    /** @type {BattleRenderer|null} */
+    this._renderer = null;
   }
 
   /**
@@ -65,6 +69,15 @@ class BattleSystem {
       };
     }).filter(Boolean);
 
+    // Set up / reset Canvas renderer
+    if (typeof BattleRenderer !== 'undefined') {
+      if (!this._renderer) {
+        this._renderer = new BattleRenderer('battle-canvas');
+      } else {
+        this._renderer.stop();
+      }
+    }
+
     this._clearLog();
     this._render();
     this._addLog('전투 시작!', 'system');
@@ -77,6 +90,17 @@ class BattleSystem {
   // ─── Rendering ─────────────────────────────────────────────────────────────
 
   _render() {
+    if (this._renderer) {
+      // Canvas renderer takes over visuals.
+      this._renderer.setup(this.party, this.enemies);
+      // Clear HTML character cards (no longer primary display).
+      const partyEl   = document.getElementById('battle-party');
+      const enemiesEl = document.getElementById('battle-enemies');
+      if (partyEl)   partyEl.innerHTML   = '';
+      if (enemiesEl) enemiesEl.innerHTML = '';
+      return;
+    }
+    // Fallback HTML rendering
     this._renderSide('battle-party',   this.party);
     this._renderSide('battle-enemies', this.enemies);
   }
@@ -92,25 +116,21 @@ class BattleSystem {
       card.id         = `battle-unit-${unit.id}`;
       card.dataset.unitId = unit.id;
 
-      // Sprite
       const sprite = UI.createCharacterSprite(unit.color, unit.name);
       card.appendChild(sprite);
       unit.spriteEl = sprite;
 
-      // Name
       const nameEl = document.createElement('div');
       nameEl.className   = 'char-name';
       nameEl.textContent = unit.name;
       card.appendChild(nameEl);
 
-      // HP text
       const hpText = document.createElement('div');
       hpText.className   = 'char-hp-text';
       hpText.textContent = `${unit.currentHP} / ${unit.maxHP}`;
       card.appendChild(hpText);
       unit.hpTextEl = hpText;
 
-      // HP bar
       const barContainer = document.createElement('div');
       barContainer.className = 'hp-bar-container';
       barContainer.style.width = '100%';
@@ -169,7 +189,6 @@ class BattleSystem {
           if (this.phase !== 'selection') return;
           AudioManager.playSFX('select');
           this.selectedSkills[member.id] = skill;
-          // Update selection visuals for this member
           cardsRow.querySelectorAll('.skill-card').forEach(c => c.classList.remove('selected'));
           card.classList.add('selected');
           this._updateStartButton();
@@ -234,7 +253,6 @@ class BattleSystem {
     const btn = document.getElementById('btn-battle-start');
     if (btn) btn.disabled = true;
 
-    // Disable skill cards during resolution
     document.querySelectorAll('.skill-card').forEach(c => c.classList.add('disabled-card'));
 
     this._addLog(`── 제 ${this.turnNumber} 턴 ──`, 'system');
@@ -267,7 +285,7 @@ class BattleSystem {
         return;
       }
 
-      await UI.delay(300);
+      await UI.delay(200);
     }
 
     // Turn over — reset for next selection
@@ -281,10 +299,6 @@ class BattleSystem {
   }
 
   async _executeAction(unit, skill) {
-    // Highlight attacker
-    const attackerEl = document.getElementById(`battle-unit-${unit.id}`);
-    if (attackerEl) attackerEl.classList.add('active-attacker');
-
     this._addLog(`${unit.name}의 [${skill.name}] (${skill.type})`, unit.isPlayer ? 'player' : 'enemy');
 
     // Pick target
@@ -294,47 +308,71 @@ class BattleSystem {
     } else {
       target = this.party.find(p => p.currentHP > 0);
     }
+    if (!target) return;
 
-    if (!target) {
-      if (attackerEl) attackerEl.classList.remove('active-attacker');
-      return;
+    // ── Walk toward target ──────────────────────────────────────────────────
+    if (this._renderer) {
+      await this._renderer.walkTo(unit, target);
+    } else {
+      document.getElementById(`battle-unit-${unit.id}`)?.classList.add('active-attacker');
+      document.getElementById(`battle-unit-${target.id}`)?.classList.add('active-target');
     }
 
-    // Highlight target
-    const targetEl = document.getElementById(`battle-unit-${target.id}`);
-    if (targetEl) targetEl.classList.add('active-target');
+    // ── Show coin flips ─────────────────────────────────────────────────────
+    const coinOverlay = document.getElementById('battle-coins-overlay');
+    if (coinOverlay) coinOverlay.classList.remove('hidden');
 
-    // Show coin flip
     const headsCount = await this._showCoinFlips(unit, skill);
     const rawDamage  = this.calculateDamage(skill, headsCount);
     const actualDmg  = Math.max(1, rawDamage - target.def);
 
-    this._addLog(`  코인 결과: ${headsCount}/${skill.coins} 성공 → ${rawDamage} - ${target.def} 방어 = ${actualDmg} 피해`, unit.isPlayer ? 'player' : 'enemy');
+    this._addLog(
+      `  코인 결과: ${headsCount}/${skill.coins} 성공 → ${rawDamage} - ${target.def} 방어 = ${actualDmg} 피해`,
+      unit.isPlayer ? 'player' : 'enemy'
+    );
 
-    // Apply damage
+    if (coinOverlay) coinOverlay.classList.add('hidden');
+
+    // ── Attack animation ────────────────────────────────────────────────────
+    if (this._renderer) {
+      await this._renderer.playAttack(unit, target);
+      this._renderer.showHit(target, skill.type);
+      this._renderer.showDamage(target, actualDmg, unit.isPlayer ? 'enemy' : 'player');
+      await UI.delay(250);
+    }
+
+    // ── Apply damage ────────────────────────────────────────────────────────
     this.applyDamage(target, actualDmg, unit.isPlayer ? 'enemy' : 'player');
     if (unit.isPlayer) this.damageDealt += actualDmg;
 
-    // Heal if skill has healSelf
+    // ── Heal self ───────────────────────────────────────────────────────────
     if (skill.healSelf && unit.isPlayer) {
       const healAmt = Math.min(skill.healSelf, unit.maxHP - unit.currentHP);
       if (healAmt > 0) {
         unit.currentHP += healAmt;
         this._updateHPDisplay(unit);
-        UI.showDamagePopup(unit.spriteEl || attackerEl, healAmt, 'heal');
+        if (this._renderer) {
+          this._renderer.showDamage(unit, healAmt, 'heal');
+        } else {
+          const el = unit.spriteEl || document.getElementById(`battle-unit-${unit.id}`);
+          UI.showDamagePopup(el, healAmt, 'heal');
+        }
         this._addLog(`  ${unit.shortName || unit.name} HP +${healAmt} 회복`, 'heal');
         AudioManager.playSFX('heal');
-        // Persist HP
         if (unit.isPlayer) GameState.currentHP[unit.id] = unit.currentHP;
       }
     }
 
     AudioManager.playSFX('hit');
+    await UI.delay(320);
 
-    await UI.delay(400);
-
-    if (attackerEl) attackerEl.classList.remove('active-attacker');
-    if (targetEl)   targetEl.classList.remove('active-target');
+    // ── Walk back ───────────────────────────────────────────────────────────
+    if (this._renderer) {
+      await this._renderer.walkBack(unit);
+    } else {
+      document.getElementById(`battle-unit-${unit.id}`)?.classList.remove('active-attacker');
+      document.getElementById(`battle-unit-${target.id}`)?.classList.remove('active-target');
+    }
   }
 
   async _showCoinFlips(unit, skill) {
@@ -342,13 +380,11 @@ class BattleSystem {
     if (!coinDisplay) return 0;
     coinDisplay.innerHTML = '';
 
-    // Label
     const label = document.createElement('div');
     label.className   = 'coin-display-label';
     label.textContent = `${unit.name} — ${skill.name}`;
     coinDisplay.appendChild(label);
 
-    // Create all coin elements
     const coinEls = [];
     for (let i = 0; i < skill.coins; i++) {
       const c = UI.createCoinEl();
@@ -356,7 +392,6 @@ class BattleSystem {
       coinEls.push(c);
     }
 
-    // Flip each coin sequentially
     let headsCount = 0;
     for (let i = 0; i < skill.coins; i++) {
       const isHeads = this.rollCoin(skill.coinChance);
@@ -372,21 +407,29 @@ class BattleSystem {
 
   applyDamage(target, amount, popupType) {
     target.currentHP = Math.max(0, target.currentHP - amount);
-    this._updateHPDisplay(target);
-
     if (target.isPlayer) GameState.currentHP[target.id] = target.currentHP;
 
-    const targetEl = document.getElementById(`battle-unit-${target.id}`);
-    if (targetEl) {
-      UI.showDamagePopup(targetEl, amount, popupType || (target.isPlayer ? 'player' : 'enemy'));
-      if (target.currentHP <= 0) {
-        targetEl.classList.add('dead');
-        this._addLog(`  ${target.name} 쓰러짐!`, 'system');
+    this._updateHPDisplay(target);
+
+    // HTML popup only when renderer is not active
+    if (!this._renderer) {
+      const targetEl = document.getElementById(`battle-unit-${target.id}`);
+      if (targetEl) {
+        UI.showDamagePopup(targetEl, amount, popupType || (target.isPlayer ? 'player' : 'enemy'));
+        if (target.currentHP <= 0) targetEl.classList.add('dead');
       }
+    }
+
+    if (target.currentHP <= 0) {
+      this._addLog(`  ${target.name} 쓰러짐!`, 'system');
     }
   }
 
   _updateHPDisplay(unit) {
+    if (this._renderer) {
+      this._renderer.refreshUnit(unit);
+      return;
+    }
     if (unit.hpBarEl)  UI.updateHPBar(unit.hpBarEl, unit.currentHP, unit.maxHP);
     if (unit.hpTextEl) unit.hpTextEl.textContent = `${Math.max(0, unit.currentHP)} / ${unit.maxHP}`;
   }
@@ -401,7 +444,6 @@ class BattleSystem {
     this.phase = 'ended';
     document.getElementById('battle-turn-indicator')?.classList.remove('active-turn');
 
-    // Persist HP
     for (const member of this.party) {
       GameState.currentHP[member.id] = member.currentHP;
     }
@@ -419,7 +461,7 @@ class BattleSystem {
       GameState.battleStats.defeats++;
     }
 
-    await UI.delay(1000);
+    await UI.delay(900);
 
     if (this.onComplete) this.onComplete(result, { damageDealt: this.damageDealt });
   }
